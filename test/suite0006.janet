@@ -84,8 +84,8 @@
            (= (t 0) (t 1))
            (= (t 1) (t 2))
            (= (t 2) (t 3))
-           (= (t 3) (t 4))
-           ))
+           (= (t 3) (t 4))))
+           
         "int64 typed arrays")
 
 # Dynamic bindings
@@ -117,6 +117,11 @@
 (parser/consume p ") 1 ")
 (assert (deep= (parser/status p) (parser/status p2)) "parser 2")
 (assert (deep= (parser/state p) (parser/state p2)) "parser 3")
+
+# Parser dispatch
+(assert (deep= '(+ 1 1) (parse @"(+ 1 1)")) "parse simple form")
+(assert (deep= '((dispatch _ [1 2 3]) true) (parse @"(\\_ [1 2 3] true)")) "parse with dispatch on _")
+(assert (deep= '((dispatch ns:tag [1 2 3]) true) (parse @"(\\ns:tag [1 2 3] true)")) "parse with dispatch on tag")
 
 # Parser errors
 (defn parse-error [input]

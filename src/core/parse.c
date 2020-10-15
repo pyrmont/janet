@@ -151,6 +151,7 @@ DEF_PARSER_STACK(_pushstate, JanetParseState, states, statecount, statecap)
 #define PFLAG_ATSYM 0x10000
 #define PFLAG_COMMENT 0x20000
 #define PFLAG_TOKEN 0x40000
+#define PFLAG_DISPATCH 0x80000
 
 static void pushstate(JanetParser *p, Consumer consumer, int flags) {
     JanetParseState s;
@@ -172,7 +173,16 @@ static void popstate(JanetParser *p, Janet val) {
             janet_tuple_sm_line(janet_unwrap_tuple(val)) = (int32_t) top.line;
             janet_tuple_sm_column(janet_unwrap_tuple(val)) = (int32_t) top.column;
         }
-        if (newtop->flags & PFLAG_CONTAINER) {
+        if (newtop->flags & PFLAG_DISPATCH && newtop->argn == 1) {
+            Janet *t = janet_tuple_begin(3);
+            t[0] = janet_csymbolv("dispatch");
+            t[1] = p->args[--p->argcount];
+            t[2] = val;
+            /* Quote source mapping info */
+            janet_tuple_sm_line(t) = (int32_t) newtop->line;
+            janet_tuple_sm_column(t) = (int32_t) newtop->column;
+            val = janet_wrap_tuple(janet_tuple_end(t));
+        } else if (newtop->flags & PFLAG_CONTAINER) {
             newtop->argn++;
             /* Keep track of number of values in the root state */
             if (p->statecount == 1) p->pending++;
@@ -533,6 +543,17 @@ static int atsign(JanetParser *p, JanetParseState *state, uint8_t c) {
     return 0;
 }
 
+static int dispatch(JanetParser *p, JanetParseState *state, uint8_t c) {
+    (void) state;
+    p->statecount--;
+    switch (c) {
+        default:
+            break;
+    }
+    pushstate(p, root, PFLAG_CONTAINER | PFLAG_DISPATCH);
+    return 0;
+}
+
 /* The root state of the parser */
 static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
     switch (c) {
@@ -559,6 +580,10 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
             return 1;
         case '@':
             pushstate(p, atsign, PFLAG_ATSYM);
+            return 1;
+        case '\\':
+            /* pushstate(p, root, PFLAG_CONTAINER | PFLAG_DISPATCH); */
+            pushstate(p, dispatch, PFLAG_DISPATCH);
             return 1;
         case '`':
             pushstate(p, longstring, PFLAG_LONGSTRING);
@@ -998,6 +1023,8 @@ static Janet janet_wrap_parse_state(JanetParseState *s, Janet *args,
         add_buffer = 1;
     } else if (s->flags & PFLAG_ATSYM) {
         type = "at";
+    } else if (s->flags & PFLAG_DISPATCH) {
+        type = "dispatch";
     } else if (s->flags & PFLAG_READERMAC) {
         int c = s->flags & 0xFF;
         type = (c == '\'') ? "quote" :
