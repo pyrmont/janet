@@ -2963,7 +2963,10 @@
 
 (defn- require-1
   [path args kargs]
-  (def [fullpath mod-kind] (module/find path))
+  (when (and (string/has-prefix? "." path) (dyn :tag))
+    (put kargs :tag (dyn :tag)))
+  (def apath (if (kargs :tag) (string path "." (kargs :tag)) path))
+  (def [fullpath mod-kind] (module/find apath))
   (unless fullpath (error mod-kind))
   (if-let [check (if-not (kargs :fresh) (in module/cache fullpath))]
     check
@@ -2972,7 +2975,8 @@
       (do
         (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
         (unless loader (error (string "module type " mod-kind " unknown")))
-        (def env (loader fullpath args))
+        (def newenv (merge-into (make-env) {:tag (kargs :tag)}))
+        (def env (loader fullpath (array/concat @[:env newenv] args)))
         (put module/cache fullpath env)
         env))))
 
