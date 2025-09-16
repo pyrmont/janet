@@ -633,8 +633,8 @@ static void handle_timeout_worker(JanetTimeout to, int cancel) {
     if (to.worker_event) {
         CloseHandle(to.worker_event);
     }
-#else
     fputs("finished handle_timeout_worker\n", stderr);
+#else
 #ifdef JANET_ANDROID
     if (cancel) janet_assert(!pthread_kill(to.worker, SIGUSR1), "pthread_kill");
 #else
