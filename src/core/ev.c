@@ -33,6 +33,7 @@
 
 #include <math.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -123,6 +124,31 @@ typedef struct {
 } JanetThreadedTimeout;
 
 #define JANET_MAX_Q_CAPACITY 0x7FFFFFF
+
+static void janet_ev_dump_timeouts(void) {
+    fprintf(stderr, "[T:%lu] DUMP TIMEOUT QUEUE: tq_count=%zu listener_count=%d spawn_count=%d\n",
+            (unsigned long)GetCurrentThreadId(),
+            janet_vm.tq_count,
+            (int) janet_atomic_load(&janet_vm.listener_count),
+            janet_q_count(&janet_vm.spawn));
+    for (size_t i = 0; i < janet_vm.tq_count; ++i) {
+        JanetTimeout *t = &janet_vm.tq[i];
+        fprintf(stderr,
+                "[T:%lu] timeout[%zu]: when=%" PRId64
+                " fiber=%p curr_fiber=%p sched_id=%u is_error=%d has_worker=%d worker=%p worker_event=%p\n",
+                (unsigned long)GetCurrentThreadId(),
+                i,
+                (int64_t) t->when,
+                (void *) t->fiber,
+                (void *) t->curr_fiber,
+                (unsigned) t->sched_id,
+                t->is_error,
+                t->has_worker,
+                (void *) t->worker,
+                (void *) t->worker_event);
+    }
+}
+
 
 static void janet_q_init(JanetQueue *q) {
     q->data = NULL;
@@ -1725,6 +1751,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     } else {
         waittime = INFINITE;
     }
+    janet_ev_dump_timeouts();
     BOOL result = GetQueuedCompletionStatus(janet_vm.iocp, &num_bytes_transferred, &completionKey, &overlapped, (DWORD) waittime);
 
     if (result || overlapped) {
