@@ -672,6 +672,20 @@ static void handle_timeout_worker(JanetTimeout to, int cancel) {
 #endif
 }
 
+static void cancel_timeout_workers(JanetFiber *fiber) {
+    if (NULL == fiber) return;
+    size_t i = 0;
+    while (i < janet_vm.tq_count) {
+        JanetTimeout t = janet_vm.tq[i];
+        if ((t.fiber == fiber) || (t.curr_fiber == fiber)) {
+            handle_timeout_worker(t, 1);
+            pop_timeout(i);
+            continue; /* pop_timeout reorders queue so skip incrementing */
+        }
+        ++i;
+    }
+}
+
 /* Common deinit code */
 void janet_ev_deinit_common(void) {
     JanetTimeout to;
@@ -1580,6 +1594,7 @@ JanetFiber *janet_loop1(void) {
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
         if (!janet_fiber_can_resume(task.fiber)) {
             janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(task.fiber));
+            cancel_timeout_workers(task.fiber);
         }
         void *sv = task.fiber->supervisor_channel;
         int is_suspended = sig == JANET_SIGNAL_EVENT || sig == JANET_SIGNAL_YIELD || sig == JANET_SIGNAL_INTERRUPT;
