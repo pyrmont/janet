@@ -708,12 +708,18 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started janet_timeout_body");
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "waiting for cancel_event");
     DWORD res = WaitForSingleObject(tto.cancel_event, (DWORD)(tto.sec * 1000));
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "waited for cancel_event");
     /* only send interrupt message if result is WAIT_TIMEOUT */
     if (res == WAIT_TIMEOUT) {
+        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "interrupting VM");
         janet_interpreter_interrupt(tto.vm);
+        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "interrupted VM");
         JanetEVGenericMessage msg = {0};
+        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "posting event");
         janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
+        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "posted event");
     }
     fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "finished janet_timeout_body");
     return 0;
