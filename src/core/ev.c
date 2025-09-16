@@ -1622,12 +1622,22 @@ void janet_loop1_interrupt(JanetVM *vm) {
 
 void janet_loop(void) {
     while (!janet_loop_done()) {
+        fprintf(stderr, "[T:%lu] loop iteration start: spawn_count=%d tq_count=%zu listener_count=%d\n",
+                (unsigned long)GetCurrentThreadId(),
+                janet_q_count(&janet_vm.spawn),
+                (size_t) janet_vm.tq_count,
+                (int) janet_atomic_load(&janet_vm.listener_count));
         fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started janet_loop iteration");
         JanetFiber *interrupted_fiber = janet_loop1();
         if (NULL != interrupted_fiber) {
             janet_schedule(interrupted_fiber, janet_wrap_nil());
         }
         fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "finished janet_loop iteration");
+        fprintf(stderr, "[T:%lu] loop iteration end: spawn_count=%d tq_count=%zu listener_count=%d\n",
+                (unsigned long)GetCurrentThreadId(),
+                janet_q_count(&janet_vm.spawn),
+                (size_t) janet_vm.tq_count,
+                (int) janet_atomic_load(&janet_vm.listener_count));
     }
 }
 
