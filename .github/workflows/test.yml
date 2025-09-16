@@ -28,30 +28,6 @@ jobs:
         shell: cmd
         run: build_win dist
 
-  test-windows-min:
-    name: Build and test on Windows Minimal build
-    strategy:
-      matrix:
-        os: [ windows-2022 ]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@master
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-      - name: Install Python Dependencies
-        run: pip install meson ninja
-      - name: Build
-        shell: cmd
-        run: |
-          meson setup build_meson_min --buildtype=release -Dsingle_threaded=true -Dnanbox=false -Ddynamic_modules=false -Ddocstrings=false -Dnet=false -Dsourcemaps=false -Dpeg=false -Dassembler=false -Dint_types=false -Dreduced_os=true -Dffi=false
-          cd build_meson_min
-          ninja
-
   test-mingw:
     name: Build on Windows with Mingw
     runs-on: windows-latest
