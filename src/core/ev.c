@@ -621,10 +621,12 @@ static void janet_timeout_stop(int sig_num) {
 #endif
 
 static void handle_timeout_worker(JanetTimeout to, int cancel) {
-    fputs("started handle_timeout_worker\n", stderr);
-    if (!to.has_worker) return;
+    if (!to.has_worker) {
+        fputs("returned early in handle_timeout_worker\n", stderr);
+        return;
+    }
 #ifdef JANET_WINDOWS
-    fputs("handle_timeout_worker did not return early\n", stderr);
+    fputs("started handle_timeout_worker\n", stderr);
     if (cancel && to.worker_event) {
         SetEvent(to.worker_event);
     }
