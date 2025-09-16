@@ -622,11 +622,11 @@ static void janet_timeout_stop(int sig_num) {
 
 static void handle_timeout_worker(JanetTimeout to, int cancel) {
     if (!to.has_worker) {
-        fputs("returned early in handle_timeout_worker\n", stderr);
+        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "returned early from handle_timeout_worker\n");
         return;
     }
 #ifdef JANET_WINDOWS
-    fputs("started handle_timeout_worker\n", stderr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started handle_timeout_worker\n");
     if (cancel && to.worker_event) {
         SetEvent(to.worker_event);
     }
@@ -635,7 +635,7 @@ static void handle_timeout_worker(JanetTimeout to, int cancel) {
     if (to.worker_event) {
         CloseHandle(to.worker_event);
     }
-    fputs("finished handle_timeout_worker\n", stderr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "finished handle_timeout_worker\n");
 #else
 #ifdef JANET_ANDROID
     if (cancel) janet_assert(!pthread_kill(to.worker, SIGUSR1), "pthread_kill");
@@ -698,14 +698,14 @@ void janet_addtimeout_nil(double sec) {
 
 static void janet_timeout_cb(JanetEVGenericMessage msg) {
     (void) msg;
-    fputs("started janet_timeout_cb\n", stderr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started janet_timeout_cb\n");
     janet_interpreter_interrupt_handled(&janet_vm);
-    fputs("finished janet_timeout_cb\n", stderr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "finished janet_timeout_cb\n");
 }
 
 #ifdef JANET_WINDOWS
 static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
-    fputs("started janet_timeout_body\n", stderr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started janet_timeout_body\n");
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
     DWORD res = WaitForSingleObject(tto.cancel_event, (DWORD)(tto.sec * 1000));
@@ -715,7 +715,7 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
         JanetEVGenericMessage msg = {0};
         janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
     }
-    fputs("finished janet_timeout_body\n", stderr);
+    fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "finished janet_timeout_body\n");
     return 0;
 }
 #else
