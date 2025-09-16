@@ -693,11 +693,14 @@ void janet_addtimeout_nil(double sec) {
 
 static void janet_timeout_cb(JanetEVGenericMessage msg) {
     (void) msg;
+    fputs("started janet_timeout_cb\n", stderr);
     janet_interpreter_interrupt_handled(&janet_vm);
+    fputs("finished janet_timeout_cb\n", stderr);
 }
 
 #ifdef JANET_WINDOWS
 static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
+    fputs("started janet_timeout_body\n", stderr);
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
     DWORD res = WaitForSingleObject(tto.cancel_event, (DWORD)(tto.sec * 1000));
@@ -707,6 +710,7 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
         JanetEVGenericMessage msg = {0};
         janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
     }
+    fputs("finished janet_timeout_body\n", stderr);
     return 0;
 }
 #else
