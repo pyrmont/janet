@@ -195,11 +195,14 @@ static int janet_q_pop(JanetQueue *q, void *out, size_t itemsize) {
 }
 
 static void janet_ev_dump_timeouts(void) {
-    fprintf(stderr, "[T:%lu] DUMP TIMEOUT QUEUE: tq_count=%zu listener_count=%d spawn_count=%d\n",
+    fprintf(stderr, "[T:%lu] DUMP TIMEOUT QUEUE @ %" PRId64 ": spawn_count=%d tq_count=%zu listener_count=%d auto_suspend=%d\n",
             (unsigned long)GetCurrentThreadId(),
+            (int64_t)ts_now(),
+            janet_q_count(&janet_vm.spawn),
             janet_vm.tq_count,
-            (int) janet_atomic_load(&janet_vm.listener_count),
-            janet_q_count(&janet_vm.spawn));
+            (int)janet_atomic_load(&janet_vm.listener_count),
+            (int)janet_atomic_load(&janet_vm.auto_suspend));
+
     for (size_t i = 0; i < janet_vm.tq_count; ++i) {
         JanetTimeout *t = &janet_vm.tq[i];
         fprintf(stderr,
@@ -207,14 +210,14 @@ static void janet_ev_dump_timeouts(void) {
                 " fiber=%p curr_fiber=%p sched_id=%u is_error=%d has_worker=%d worker=%p worker_event=%p\n",
                 (unsigned long)GetCurrentThreadId(),
                 i,
-                (int64_t) t->when,
-                (void *) t->fiber,
-                (void *) t->curr_fiber,
-                (unsigned) t->sched_id,
+                (int64_t)t->when,
+                (void *)t->fiber,
+                (void *)t->curr_fiber,
+                (unsigned)t->sched_id,
                 t->is_error,
                 t->has_worker,
-                (void *) t->worker,
-                (void *) t->worker_event);
+                (void *)t->worker,
+                (void *)t->worker_event);
     }
 }
 
@@ -1548,6 +1551,7 @@ JanetFiber *janet_loop1(void) {
     /* Schedule expired timers */
     JanetTimeout to;
     JanetTimestamp now = ts_now();
+    fprintf(stderr, "[T:%lu] now=%" PRId64 " (ts_now)\n", (unsigned long)GetCurrentThreadId(), (int64_t) now);
     while (peek_timeout(&to) && to.when <= now) {
         pop_timeout(0);
         if (to.curr_fiber != NULL) {
@@ -1567,12 +1571,7 @@ JanetFiber *janet_loop1(void) {
         handle_timeout_worker(to, 0);
     }
 
-    fprintf(stderr, "[T:%lu] expired timers cleared: spawn_count=%d tq_count=%zu listener_count=%d auto_suspend=%d\n",
-            (unsigned long)GetCurrentThreadId(),
-            janet_q_count(&janet_vm.spawn),
-            (size_t)janet_vm.tq_count,
-            (int)janet_atomic_load(&janet_vm.listener_count),
-            (int)janet_atomic_load(&janet_vm.auto_suspend));
+    janet_ev_dump_timeouts();
 
     /* Run scheduled fibers unless interrupts need to be handled. */
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
@@ -1757,7 +1756,6 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     } else {
         waittime = INFINITE;
     }
-    janet_ev_dump_timeouts();
     BOOL result = GetQueuedCompletionStatus(janet_vm.iocp, &num_bytes_transferred, &completionKey, &overlapped, (DWORD) waittime);
 
     if (result || overlapped) {
