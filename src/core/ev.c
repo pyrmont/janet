@@ -736,9 +736,13 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started janet_timeout_body");
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
+    JanetTimestamp now = ts_now();
+    fprintf(stderr, "[T:%lu] now=%" PRId64 " (ts_now)\n", (unsigned long)GetCurrentThreadId(), (int64_t) now);
     fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "waiting for cancel_event");
     DWORD res = WaitForSingleObject(tto.cancel_event, (DWORD)(tto.sec * 1000));
     fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "waited for cancel_event");
+    now = ts_now();
+    fprintf(stderr, "[T:%lu] now=%" PRId64 " (ts_now)\n", (unsigned long)GetCurrentThreadId(), (int64_t) now);
     /* only send interrupt message if result is WAIT_TIMEOUT */
     if (res == WAIT_TIMEOUT) {
         fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "interrupting VM");
