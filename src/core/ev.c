@@ -194,6 +194,9 @@ static int janet_q_pop(JanetQueue *q, void *out, size_t itemsize) {
     return 0;
 }
 
+/* Get current timestamp (millisecond precision) */
+static JanetTimestamp ts_now(void);
+
 static void janet_ev_dump_timeouts(void) {
     fprintf(stderr, "[T:%lu] DUMP TIMEOUT QUEUE @ %" PRId64 ": spawn_count=%d tq_count=%zu listener_count=%d auto_suspend=%d\n",
             (unsigned long)GetCurrentThreadId(),
@@ -220,9 +223,6 @@ static void janet_ev_dump_timeouts(void) {
                 (void *)t->worker_event);
     }
 }
-
-/* Get current timestamp (millisecond precision) */
-static JanetTimestamp ts_now(void);
 
 /* Get current timestamp + an interval (millisecond precision) */
 static JanetTimestamp ts_delta(JanetTimestamp ts, double delta) {
