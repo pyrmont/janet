@@ -672,20 +672,6 @@ static void handle_timeout_worker(JanetTimeout to, int cancel) {
 #endif
 }
 
-static void cancel_timeout_workers(JanetFiber *fiber) {
-    if (NULL == fiber) return;
-    size_t i = 0;
-    while (i < janet_vm.tq_count) {
-        JanetTimeout t = janet_vm.tq[i];
-        if ((t.fiber == fiber) || (t.curr_fiber == fiber)) {
-            handle_timeout_worker(t, 1);
-            pop_timeout(i);
-            continue; /* pop_timeout reorders queue so skip incrementing */
-        }
-        ++i;
-    }
-}
-
 /* Common deinit code */
 void janet_ev_deinit_common(void) {
     JanetTimeout to;
@@ -1581,6 +1567,13 @@ JanetFiber *janet_loop1(void) {
         handle_timeout_worker(to, 0);
     }
 
+    fprintf(stderr, "[T:%lu] expired timers cleared: spawn_count=%d tq_count=%zu listener_count=%d auto_suspend=%d\n",
+            (unsigned long)GetCurrentThreadId(),
+            janet_q_count(&janet_vm.spawn),
+            (size_t)janet_vm.tq_count,
+            (int)janet_atomic_load(&janet_vm.listener_count),
+            (int)janet_atomic_load(&janet_vm.auto_suspend));
+
     /* Run scheduled fibers unless interrupts need to be handled. */
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
         /* Don't run until all interrupts have been marked as handled by calling janet_interpreter_interrupt_handled */
@@ -1594,7 +1587,6 @@ JanetFiber *janet_loop1(void) {
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
         if (!janet_fiber_can_resume(task.fiber)) {
             janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(task.fiber));
-            cancel_timeout_workers(task.fiber);
         }
         void *sv = task.fiber->supervisor_channel;
         int is_suspended = sig == JANET_SIGNAL_EVENT || sig == JANET_SIGNAL_YIELD || sig == JANET_SIGNAL_INTERRUPT;
@@ -1662,22 +1654,22 @@ void janet_loop1_interrupt(JanetVM *vm) {
 
 void janet_loop(void) {
     while (!janet_loop_done()) {
-        fprintf(stderr, "[T:%lu] loop iteration start: spawn_count=%d tq_count=%zu listener_count=%d\n",
+        fprintf(stderr, "[T:%lu] loop iteration start: spawn_count=%d tq_count=%zu listener_count=%d auto_suspend=%d\n",
                 (unsigned long)GetCurrentThreadId(),
                 janet_q_count(&janet_vm.spawn),
-                (size_t) janet_vm.tq_count,
-                (int) janet_atomic_load(&janet_vm.listener_count));
-        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "started janet_loop iteration");
+                (size_t)janet_vm.tq_count,
+                (int)janet_atomic_load(&janet_vm.listener_count),
+                (int)janet_atomic_load(&janet_vm.auto_suspend));
         JanetFiber *interrupted_fiber = janet_loop1();
         if (NULL != interrupted_fiber) {
             janet_schedule(interrupted_fiber, janet_wrap_nil());
         }
-        fprintf(stderr, "[T:%lu] %s\n", (unsigned long)GetCurrentThreadId(), "finished janet_loop iteration");
-        fprintf(stderr, "[T:%lu] loop iteration end: spawn_count=%d tq_count=%zu listener_count=%d\n",
+        fprintf(stderr, "[T:%lu] loop iteration end: spawn_count=%d tq_count=%zu listener_count=%d auto_suspend=%d\n",
                 (unsigned long)GetCurrentThreadId(),
                 janet_q_count(&janet_vm.spawn),
-                (size_t) janet_vm.tq_count,
-                (int) janet_atomic_load(&janet_vm.listener_count));
+                (size_t)janet_vm.tq_count,
+                (int)janet_atomic_load(&janet_vm.listener_count),
+                (int)janet_atomic_load(&janet_vm.auto_suspend));
     }
 }
 
