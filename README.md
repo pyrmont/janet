@@ -301,6 +301,25 @@ build/janet
 ninja -C build install
 ```
 
+### Zig (experimental)
+
+The incremental Zig rewrite has an experimental build that compiles the
+unchanged C runtime. It currently requires Zig 0.16.0, as recorded in
+`.zigversion`.
+
+```sh
+zig build
+zig build test
+zig build run -- -e '(print "hello")'
+```
+
+Artifacts are installed under `zig-out` by default: the Janet executable in
+`zig-out/bin`, static and shared libraries in `zig-out/lib`, and matching C
+headers in `zig-out/include/janet`. Use `zig build --help` to see feature flags
+and the usual Zig target, optimization, and installation options. The
+`abi-test` step runs the C and Zig layout checks plus a C embedding smoke test
+without running Janet's full language suite.
+
 ## Development
 
 Janet can be hacked on with pretty much any environment you like, but for IDE

@@ -9,6 +9,8 @@ janet
 /Release
 /Debug
 /Emscripten
+/.zig-cache
+/zig-out
 /src/include/generated/*.h
 janet-*.tar.gz
 dist
